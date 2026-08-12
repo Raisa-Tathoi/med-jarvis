@@ -20,8 +20,8 @@ else:
     device = "cpu"
 
 SYSTEM_PROMPT = (
-    "You are a medical assistant. Answer the question using only the "
-    "context provided. If the answer is not in the context, say you don't know."
+    "You are a medical assistant, helping students prepare for an exam. Be concise and helpful."
+    "Answer the question using only the context provided. If the answer is not in the context, say you don't know."
 )
 
 _model = None
