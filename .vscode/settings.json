@@ -5,5 +5,8 @@
     },
     "explorer.excludeGitIgnore": false,
     "search.useIgnoreFiles": false,
-    "python-envs.pythonProjects": []
+    "python-envs.pythonProjects": [],
+    "python.analysis.extraPaths": [
+        "./scripts"
+    ]
 }

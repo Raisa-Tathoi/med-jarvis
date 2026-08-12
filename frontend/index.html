@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>med-jarvis</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --border: #e3e3e8;
+    --text: #1a1a1e;
+    --muted: #6b6b76;
+    --accent: #2f6fed;
+    --user-bg: #2f6fed;
+    --user-text: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --panel: #1e1e24;
+      --border: #2e2e38;
+      --text: #ececf1;
+      --muted: #9a9aa8;
+      --accent: #6d9bff;
+      --user-bg: #2f5fbd;
+      --user-text: #ffffff;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header span { color: var(--muted); font-size: 13px; }
+
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .wrap { width: 100%; max-width: 760px; margin: 0 auto; }
+
+  .msg { display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 14px;
+    max-width: 88%;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .user .bubble { background: var(--user-bg); color: var(--user-text); }
+  .bot .bubble { background: var(--panel); border: 1px solid var(--border); }
+
+  .empty { color: var(--muted); text-align: center; margin-top: 15vh; }
+
+  details {
+    margin-top: 8px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  summary { cursor: pointer; padding: 8px 12px; color: var(--muted); user-select: none; }
+  .src {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    white-space: pre-wrap;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .error { color: #d64545; }
+  .cursor::after {
+    content: "▍";
+    animation: blink 1s steps(2) infinite;
+    color: var(--accent);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  footer {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 12px 20px;
+  }
+  form { display: flex; gap: 10px; }
+  textarea {
+    flex: 1;
+    resize: none;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    max-height: 160px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 0 18px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .hint { color: var(--muted); font-size: 12px; margin: 8px auto 0; max-width: 760px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>med-jarvis</h1>
+  <span>First Aid for the USMLE Step 2 &mdash; retrieval-augmented answers</span>
+</header>
+
+<div id="chat">
+  <p class="empty" id="empty">Ask a question to get started.</p>
+</div>
+
+<footer>
+  <form id="form" class="wrap">
+    <textarea id="q" rows="1" placeholder="e.g. What are the Jones criteria for acute rheumatic fever?" autofocus></textarea>
+    <button id="send" type="submit">Ask</button>
+  </form>
+  <p class="hint">Enter to send, Shift+Enter for a new line. First question loads the model, so it can take a minute.</p>
+</footer>
+
+<script>
+const chat = document.getElementById("chat");
+const form = document.getElementById("form");
+const input = document.getElementById("q");
+const send = document.getElementById("send");
+
+function addMessage(role, text) {
+  const empty = document.getElementById("empty");
+  if (empty) empty.remove();
+
+  const row = document.createElement("div");
+  row.className = `msg ${role} wrap`;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.textContent = text;
+  row.appendChild(bubble);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+  return bubble;
+}
+
+function addSources(bubble, sources) {
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = `${sources.length} retrieved passage${sources.length === 1 ? "" : "s"}`;
+  details.appendChild(summary);
+  for (const s of sources) {
+    const div = document.createElement("div");
+    div.className = "src";
+    div.textContent = s;
+    details.appendChild(div);
+  }
+  bubble.parentElement.appendChild(details);
+}
+
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = input.scrollHeight + "px";
+});
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = input.value.trim();
+  if (!question || send.disabled) return;
+
+  addMessage("user", question);
+  input.value = "";
+  input.style.height = "auto";
+  send.disabled = true;
+
+  const bubble = addMessage("bot", "");
+  bubble.classList.add("cursor");
+  let gotToken = false;
+
+  try {
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // NDJSON: complete lines only, keep the trailing partial in the buffer.
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const evt = JSON.parse(line);
+
+        if (evt.type === "token") {
+          bubble.textContent += evt.text;
+          gotToken = true;
+          chat.scrollTop = chat.scrollHeight;
+        } else if (evt.type === "sources") {
+          addSources(bubble, evt.sources);
+        } else if (evt.type === "error") {
+          bubble.classList.add("error");
+          bubble.textContent = `Error: ${evt.message}`;
+        }
+      }
+    }
+
+    if (!gotToken && !bubble.classList.contains("error")) {
+      bubble.textContent = "(no answer returned)";
+    }
+  } catch (err) {
+    bubble.classList.add("error");
+    bubble.textContent = `Error: ${err.message}`;
+  } finally {
+    bubble.classList.remove("cursor");
+    send.disabled = false;
+    input.focus();
+    chat.scrollTop = chat.scrollHeight;
+  }
+});
+</script>
+</body>
+</html>

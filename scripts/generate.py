@@ -48,11 +48,15 @@ def load_model():
 
 
 def stream_answer(
-    question: str, n_results: int = 5, max_new_tokens: int = 512
+    question: str,
+    n_results: int = 5,
+    max_new_tokens: int = 512,
+    chunks: list[str] | None = None,
 ) -> Iterator[str]:
     model, tokenizer = load_model()
 
-    chunks = retrieve(question, n_results=n_results)
+    if chunks is None:
+        chunks = retrieve(question, n_results=n_results)
     context = "\n---\n".join(chunks)
 
     messages = [
