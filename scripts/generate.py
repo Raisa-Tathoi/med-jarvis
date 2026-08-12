@@ -48,7 +48,7 @@ def load_model():
 
 
 def stream_answer(
-    question: str, n_results: int = 3, max_new_tokens: int = 512
+    question: str, n_results: int = 5, max_new_tokens: int = 512
 ) -> Iterator[str]:
     model, tokenizer = load_model()
 

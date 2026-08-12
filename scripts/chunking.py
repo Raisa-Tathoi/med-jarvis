@@ -38,7 +38,7 @@ def analyze_chunks(chunks, use_tokens=False):
 print("blurg")
 recursive_character_chunker = RecursiveTokenChunker(
     chunk_size=800,  # Character Length
-    chunk_overlap=0,  # Overlap
+    chunk_overlap=100,  # Overlap
     length_function=len,  # Character length with len()
     separators=["\n\n", "\n", ".", "?", "!", " ", ""] # According to Research
 )
